@@ -16,6 +16,7 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/uuid": "^10.0.0",
     "axios": "^1.12.2",
+    "lucide-react": "^0.544.0",
     "multer": "^2.0.2",
     "next": "15.5.3",
     "openai": "^5.22.0",
@@ -27,14 +28,15 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.17",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "cpx": "^1.5.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.3",
-    "tailwindcss": "^4",
+    "tailwindcss": "^3.4.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
     "typescript": "^5"
   }
 }

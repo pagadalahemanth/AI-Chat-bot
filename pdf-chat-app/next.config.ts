@@ -2,7 +2,7 @@
 const webpack = require('webpack');
 const nextConfig = {
   experimental: {
-    serverActions: true,
+    serverActions: {},
   },
   webpack: (config: any, { isServer }: { isServer: boolean }) => {
     if (isServer) {
