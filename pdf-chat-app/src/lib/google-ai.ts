@@ -182,6 +182,146 @@
 //   }
 // }
 
+// import { GoogleGenerativeAI } from '@google/generative-ai';
+
+// if (!process.env.GOOGLE_API_KEY) {
+//   throw new Error('GOOGLE_API_KEY is not set in environment variables');
+// }
+
+// const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+
+// // Rate limiting
+// let lastRequestTime = 0;
+// const MIN_DELAY_MS = 3000; // 3 seconds between requests
+
+// export async function generateEmbedding(text: string): Promise<number[]> {
+//   console.log('📝 Generating embedding with rate limiting...');
+  
+//   // Rate limiting
+//   const now = Date.now();
+//   const timeSinceLastRequest = now - lastRequestTime;
+  
+//   if (timeSinceLastRequest < MIN_DELAY_MS) {
+//     const waitTime = MIN_DELAY_MS - timeSinceLastRequest;
+//     console.log(`⏳ Rate limiting: waiting ${waitTime}ms`);
+//     await new Promise(resolve => setTimeout(resolve, waitTime));
+//   }
+  
+//   try {
+//     // Use text-embedding-004 which might have better limits
+//     const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
+    
+//     // Truncate text to avoid token limits
+//     const truncatedText = text.length > 6000 ? text.substring(0, 6000) + '...' : text;
+    
+//     console.log(`📝 Processing text: ${truncatedText.length} characters`);
+    
+//     const result = await model.embedContent(truncatedText);
+//     lastRequestTime = Date.now();
+    
+//     if (!result.embedding?.values) {
+//       throw new Error('No embedding values returned');
+//     }
+    
+//     // Ensure we return the right number of dimensions
+//     const embedding = result.embedding.values;
+    
+//     // If the embedding is not 1024 dimensions, pad or truncate
+//     if (embedding.length !== 1024) {
+//       console.log(`📝 Adjusting embedding from ${embedding.length} to 1024 dimensions`);
+      
+//       if (embedding.length > 1024) {
+//         return embedding.slice(0, 1024);
+//       } else {
+//         const paddedEmbedding = [...embedding];
+//         while (paddedEmbedding.length < 1024) {
+//           paddedEmbedding.push(0);
+//         }
+//         return paddedEmbedding;
+//       }
+//     }
+    
+//     console.log(`✅ Embedding generated: ${embedding.length} dimensions`);
+//     return embedding;
+    
+//   } catch (error) {
+//     console.error('❌ Embedding failed:', error);
+    
+//     // Retry logic for rate limits
+//     if (error instanceof Error && error.message.includes('429')) {
+//       console.log('⏳ Rate limit hit, waiting 10 seconds and retrying once...');
+//       await new Promise(resolve => setTimeout(resolve, 10000));
+      
+//       try {
+//         const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
+//         const truncatedText = text.length > 6000 ? text.substring(0, 6000) : text;
+//         const result = await model.embedContent(truncatedText);
+//         lastRequestTime = Date.now();
+        
+//         if (!result.embedding?.values) {
+//           throw new Error('No embedding values returned on retry');
+//         }
+        
+//         const embedding = result.embedding.values;
+        
+//         if (embedding.length !== 1024) {
+//           if (embedding.length > 1024) {
+//             return embedding.slice(0, 1024);
+//           } else {
+//             const paddedEmbedding = [...embedding];
+//             while (paddedEmbedding.length < 1024) {
+//               paddedEmbedding.push(0);
+//             }
+//             return paddedEmbedding;
+//           }
+//         }
+        
+//         return embedding;
+        
+//       } catch (retryError) {
+//         throw new Error(`Embedding failed after retry: ${retryError instanceof Error ? retryError.message : 'Unknown'}`);
+//       }
+//     }
+    
+//     throw new Error(`Failed to generate embedding: ${error instanceof Error ? error.message : 'Unknown'}`);
+//   }
+// }
+
+// export async function generateChatResponse(query: string, context: string): Promise<string> {
+//   console.log('💬 Generating chat response...');
+  
+//   // Rate limiting
+//   const now = Date.now();
+//   const timeSinceLastRequest = now - lastRequestTime;
+  
+//   if (timeSinceLastRequest < MIN_DELAY_MS) {
+//     const waitTime = MIN_DELAY_MS - timeSinceLastRequest;
+//     await new Promise(resolve => setTimeout(resolve, waitTime));
+//   }
+  
+//   try {
+//     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    
+//     const prompt = `Answer the question based on the provided context.
+
+// Context: ${context}
+
+// Question: ${query}
+
+// Answer:`;
+
+//     const result = await model.generateContent(prompt);
+//     lastRequestTime = Date.now();
+    
+//     const response = await result.response;
+//     return response.text() || 'Sorry, I could not generate a response.';
+    
+//   } catch (error) {
+//     console.error('❌ Chat response failed:', error);
+//     throw new Error(`Failed to generate chat response: ${error instanceof Error ? error.message : 'Unknown'}`);
+//   }
+// }
+
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 if (!process.env.GOOGLE_API_KEY) {
@@ -190,99 +330,44 @@ if (!process.env.GOOGLE_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-// Rate limiting
-let lastRequestTime = 0;
-const MIN_DELAY_MS = 3000; // 3 seconds between requests
-
 export async function generateEmbedding(text: string): Promise<number[]> {
-  console.log('📝 Generating embedding with rate limiting...');
-  
-  // Rate limiting
-  const now = Date.now();
-  const timeSinceLastRequest = now - lastRequestTime;
-  
-  if (timeSinceLastRequest < MIN_DELAY_MS) {
-    const waitTime = MIN_DELAY_MS - timeSinceLastRequest;
-    console.log(`⏳ Rate limiting: waiting ${waitTime}ms`);
-    await new Promise(resolve => setTimeout(resolve, waitTime));
-  }
+  console.log('📝 Generating embedding...');
   
   try {
-    // Use text-embedding-004 which might have better limits
     const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
-    
-    // Truncate text to avoid token limits
-    const truncatedText = text.length > 6000 ? text.substring(0, 6000) + '...' : text;
-    
-    console.log(`📝 Processing text: ${truncatedText.length} characters`);
-    
-    const result = await model.embedContent(truncatedText);
-    lastRequestTime = Date.now();
+    const result = await model.embedContent(text);
     
     if (!result.embedding?.values) {
       throw new Error('No embedding values returned');
     }
     
-    // Ensure we return the right number of dimensions
-    const embedding = result.embedding.values;
+    let embedding = result.embedding.values;
+    console.log(`📝 Original embedding dimensions: ${embedding.length}`);
     
-    // If the embedding is not 1024 dimensions, pad or truncate
-    if (embedding.length !== 1024) {
-      console.log(`📝 Adjusting embedding from ${embedding.length} to 1024 dimensions`);
+    // Convert to 1024 dimensions to match Pinecone index
+    if (embedding.length === 768) {
+      // Pad with calculated values instead of zeros for better similarity
+      const paddedEmbedding = [...embedding];
+      const avgValue = embedding.reduce((sum, val) => sum + val, 0) / embedding.length;
       
-      if (embedding.length > 1024) {
-        return embedding.slice(0, 1024);
-      } else {
-        const paddedEmbedding = [...embedding];
-        while (paddedEmbedding.length < 1024) {
-          paddedEmbedding.push(0);
-        }
-        return paddedEmbedding;
+      while (paddedEmbedding.length < 1024) {
+        // Add small variations around the average
+        const variation = (Math.random() - 0.5) * 0.1 * avgValue;
+        paddedEmbedding.push(avgValue + variation);
       }
+      
+      // Renormalize the embedding
+      const magnitude = Math.sqrt(paddedEmbedding.reduce((sum, val) => sum + val * val, 0));
+      embedding = paddedEmbedding.map(val => val / magnitude);
+      
+      console.log(`📝 Padded to ${embedding.length} dimensions and renormalized`);
     }
     
-    console.log(`✅ Embedding generated: ${embedding.length} dimensions`);
+    console.log(`✅ Final embedding: ${embedding.length} dimensions`);
     return embedding;
     
   } catch (error) {
     console.error('❌ Embedding failed:', error);
-    
-    // Retry logic for rate limits
-    if (error instanceof Error && error.message.includes('429')) {
-      console.log('⏳ Rate limit hit, waiting 10 seconds and retrying once...');
-      await new Promise(resolve => setTimeout(resolve, 10000));
-      
-      try {
-        const model = genAI.getGenerativeModel({ model: 'text-embedding-004' });
-        const truncatedText = text.length > 6000 ? text.substring(0, 6000) : text;
-        const result = await model.embedContent(truncatedText);
-        lastRequestTime = Date.now();
-        
-        if (!result.embedding?.values) {
-          throw new Error('No embedding values returned on retry');
-        }
-        
-        const embedding = result.embedding.values;
-        
-        if (embedding.length !== 1024) {
-          if (embedding.length > 1024) {
-            return embedding.slice(0, 1024);
-          } else {
-            const paddedEmbedding = [...embedding];
-            while (paddedEmbedding.length < 1024) {
-              paddedEmbedding.push(0);
-            }
-            return paddedEmbedding;
-          }
-        }
-        
-        return embedding;
-        
-      } catch (retryError) {
-        throw new Error(`Embedding failed after retry: ${retryError instanceof Error ? retryError.message : 'Unknown'}`);
-      }
-    }
-    
     throw new Error(`Failed to generate embedding: ${error instanceof Error ? error.message : 'Unknown'}`);
   }
 }
@@ -290,30 +375,20 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 export async function generateChatResponse(query: string, context: string): Promise<string> {
   console.log('💬 Generating chat response...');
   
-  // Rate limiting
-  const now = Date.now();
-  const timeSinceLastRequest = now - lastRequestTime;
-  
-  if (timeSinceLastRequest < MIN_DELAY_MS) {
-    const waitTime = MIN_DELAY_MS - timeSinceLastRequest;
-    await new Promise(resolve => setTimeout(resolve, waitTime));
-  }
-  
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     
-    const prompt = `Answer the question based on the provided context.
+    const prompt = `You are a helpful AI assistant. Answer the question based on the provided context from the document.
 
 Context: ${context}
 
 Question: ${query}
 
-Answer:`;
+Please provide a clear, helpful answer based on the information in the context. If the information isn't available in the context, say so politely.`;
 
     const result = await model.generateContent(prompt);
-    lastRequestTime = Date.now();
-    
     const response = await result.response;
+    
     return response.text() || 'Sorry, I could not generate a response.';
     
   } catch (error) {
