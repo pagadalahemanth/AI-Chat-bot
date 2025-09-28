@@ -7,15 +7,18 @@ import { extractTextFromPDF, chunkText } from '@/lib/pdf-parser';
 import { processDocumentChunks } from '@/lib/embeddings';
 
 export async function POST(request: NextRequest) {
+  console.log('📤 === OPTIMIZED UPLOAD START ===');
+  
   try {
-    // Validate environment variables
+    // Step 1: Validate environment
     if (!process.env.GOOGLE_API_KEY || !process.env.PINECONE_API_KEY || !process.env.PINECONE_INDEX_NAME) {
       return NextResponse.json(
-        { error: 'Google API key or Pinecone configuration missing' },
+        { error: 'API configuration missing' },
         { status: 500 }
       );
     }
 
+    // Step 2: Parse and validate file
     const formData = await request.formData();
     const file = formData.get('pdf') as File;
     
@@ -27,65 +30,87 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File must be a PDF' }, { status: 400 });
     }
 
-    // Check file size (limit to 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: 'File size must be less than 10MB' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'File size must be less than 10MB' }, { status: 400 });
     }
 
-    // Create uploads directory if it doesn't exist
+    const documentId = uuidv4();
+    console.log(`📄 Processing: ${file.name} (${file.size} bytes) - ID: ${documentId}`);
+
+    // Step 3: Quick file save (don't wait for processing)
     const uploadsDir = path.join(process.cwd(), 'uploads');
     if (!existsSync(uploadsDir)) {
       await mkdir(uploadsDir, { recursive: true });
     }
 
-    // Generate unique filename
-    const documentId = uuidv4();
     const filename = `${documentId}_${file.name}`;
     const filepath = path.join(uploadsDir, filename);
-
-    // Save file
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     await writeFile(filepath, buffer);
+    console.log('✅ File saved');
 
-    console.log(`File saved: ${filename}`);
-
-    // Extract text from PDF
-    const text = await extractTextFromPDF(buffer);
-    
-    if (!text.trim()) {
-      return NextResponse.json({ error: 'Could not extract text from PDF' }, { status: 400 });
+    // Step 4: Extract and validate text
+    let text: string;
+    try {
+      text = await extractTextFromPDF(buffer);
+      console.log(`📝 Extracted ${text.length} characters`);
+      
+      if (!text.trim()) {
+        throw new Error('No text content found');
+      }
+      
+      // Log first part of extracted text for debugging
+      console.log('📝 Text sample:', text.substring(0, 300));
+      
+    } catch (extractError) {
+      console.error('❌ Text extraction failed:', extractError);
+      return NextResponse.json({ 
+        error: 'Could not extract text from PDF. Please ensure it\'s not scanned or encrypted.' 
+      }, { status: 400 });
     }
 
-    console.log(`Extracted ${text.length} characters from PDF`);
-
-    // Chunk the text
-    const chunks = chunkText(text, 3000, 500);
-    
+    // Step 5: Create optimized chunks
+    // const chunks = chunkText(text, 2000, 400); // Larger chunks for better context
+    const chunks = chunkText(text, 1200, 200);
     if (chunks.length === 0) {
       return NextResponse.json({ error: 'No meaningful content found in PDF' }, { status: 400 });
     }
 
-    console.log(`Created ${chunks.length} chunks`);
+    console.log(`📊 Created ${chunks.length} chunks`);
 
-    // Process chunks and create embeddings
-    await processDocumentChunks(chunks, documentId, file.name);
+    // Step 6: Process embeddings with rate limiting
+    try {
+      console.log('🔄 Starting embedding process...');
+      await processDocumentChunks(chunks, documentId, file.name);
+      console.log('✅ Document processing completed');
+    } catch (processingError) {
+      console.error('❌ Processing failed:', processingError);
+      return NextResponse.json({ 
+        error: `Processing failed: ${processingError instanceof Error ? processingError.message : 'Unknown error'}`,
+        details: 'The file was uploaded but embedding generation failed. Please try again.'
+      }, { status: 500 });
+    }
 
+    console.log('🎉 === UPLOAD SUCCESS ===');
     return NextResponse.json({
       success: true,
       documentId,
       filename: file.name,
       chunksCount: chunks.length,
-      message: 'PDF processed successfully with Google AI. You can now chat with it!',
+      extractedLength: text.length,
+      message: 'PDF processed successfully! You can now chat with it.',
     });
 
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error('💥 === UPLOAD ERROR ===');
+    console.error('Error:', error);
+    
     return NextResponse.json(
-      { error: `Failed to process PDF: ${error instanceof Error ? error.message : 'Unknown error'}` },
+      { 
+        error: `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        suggestion: 'Please check the PDF file and try again.'
+      },
       { status: 500 }
     );
   }
