@@ -23,6 +23,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ uploadedFile }) =>
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+useEffect(() => {
+  if (!uploadedFile) return;
+
+  const savedMessages = localStorage.getItem(`chat-${uploadedFile}`);
+  if (savedMessages) {
+    setMessages(JSON.parse(savedMessages));
+  } else {
+    setMessages([]); // new file → empty chat
+  }
+}, [uploadedFile]);
+
+useEffect(() => {
+  if (uploadedFile) {
+    localStorage.setItem(`chat-${uploadedFile}`, JSON.stringify(messages));
+  }
+}, [messages, uploadedFile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
